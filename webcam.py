@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import mediapipe as mp
 
 # Set width and height of the output screen
 frameWidth = 640
@@ -23,6 +24,11 @@ cap.set(4, frameHeight)  # Property ID 4 is frame height
 
 # Set brightness, Property ID 10
 cap.set(10, 150)
+
+# Initialize Mediapipe Hand Tracking
+mpHands = mp.solutions.hands
+hands = mpHands.Hands(max_num_hands=1, min_detection_confidence=0.7)
+mpDraw = mp.solutions.drawing_utils
 
 # Object color values in HSV
 myColors = [[5, 107, 0, 19, 255, 255], 
@@ -87,8 +93,26 @@ while True:
         break
     
     imgResult = img.copy()
-    newPoints = findColor(img, myColors, myColorValues)
     
+    # Detect and draw hands
+    imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    results = hands.process(imgRGB)
+    
+    if results.multi_hand_landmarks:
+        for handLms in results.multi_hand_landmarks:
+            mpDraw.draw_landmarks(imgResult, handLms, mpHands.HAND_CONNECTIONS)
+            
+            for id, lm in enumerate(handLms.landmark):
+                h, w, c = img.shape
+                cx, cy = int(lm.x * w), int(lm.y * h)
+                
+                # Example: Mark the tip of the index finger (ID 8)
+                if id == 8:
+                    cv2.circle(imgResult, (cx, cy), 15, (255, 0, 255), cv2.FILLED)
+                    myPoints.append([cx, cy, 0])  # Using colorId 0 for drawing with the first color
+
+    # Finding object colors
+    newPoints = findColor(img, myColors, myColorValues)
     if len(newPoints) != 0:
         for newP in newPoints:
             myPoints.append(newP)
